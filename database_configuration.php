@@ -1,66 +1,73 @@
 <?php
 /*
  * -----------------------------------------------------------------
- * DATABASE CONFIGURATION
+ * DATABASE CONFIGURATION 
  * -----------------------------------------------------------------
- *
- * PLEASE EDIT THE DETAILS BELOW TO MATCH YOUR DATABASE CREDENTIALS
- *
+ * Securely loads credentials from .env file using phpdotenv.
+ * Works seamlessly with both local XAMPP and production servers.
+ * -----------------------------------------------------------------
  */
 
-define('DB_HOST', 'localhost');      
-define('DB_USER', 'root');   // Your database username
-define('DB_PASS', ''); // Your database password
-define('DB_NAME', 'forevertunes_db');  // Your database name
+require_once __DIR__ . '/vendor/autoload.php';
 
+use Dotenv\Dotenv;
+
+// ---------------------------------------------------------------
+// 🧩 Load Environment Variables
+// ---------------------------------------------------------------
+if (!getenv('DB_HOST')) {
+    $dotenv = Dotenv::createImmutable(__DIR__);
+    $dotenv->safeLoad(); // safeLoad() avoids fatal errors if .env missing
+}
+
+// ---------------------------------------------------------------
+// ⚙️ Database Connection Function
+// ---------------------------------------------------------------
 /**
- * Creates a new database connection.
- * @return mysqli|null A mysqli connection object or null on failure.
+ * Establish a secure MySQL connection.
+ *
+ * @return mysqli|null  Returns a mysqli connection object or null on failure.
  */
 function getDbConnection() {
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    $dbHost = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?? '127.0.0.1';
+    $dbUser = $_ENV['DB_USER'] ?? getenv('DB_USER') ?? 'root';
+    $dbPass = $_ENV['DB_PASS'] ?? getenv('DB_PASS') ?? '';
+    $dbName = $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?? 'forevertunes_db';
 
-    // Check connection
-    if ($conn->connect_error) {
-        // Don't echo errors publicly in a production environment
-        // error_log("Connection failed: " . $conn->connect_error);
+    // ✅ Verify mysqli is available before creating connection
+    if (!class_exists('mysqli')) {
+        error_log("❌ PHP MySQLi extension not enabled. Enable 'extension=mysqli' in php.ini.");
         return null;
     }
-    
+
+    // Create connection
+    $conn = @new mysqli($dbHost, $dbUser, $dbPass, $dbName);
+
+    // Check connection errors
+    if ($conn->connect_errno) {
+        error_log("❌ Database connection failed ({$conn->connect_errno}): {$conn->connect_error}");
+        return null;
+    }
+
     // Set charset
-    $conn->set_charset("utf8mb4");
-    
+    if (!$conn->set_charset("utf8mb4")) {
+        error_log("⚠️ Failed to set charset: " . $conn->error);
+    }
+
     return $conn;
 }
 
+// ---------------------------------------------------------------
+// 🧹 Safely Close Connection
+// ---------------------------------------------------------------
 /**
- * Returns a Razorpay Key ID.
- * Replace with your actual Test or Live Key ID.
+ * Safely close a MySQL connection if open.
  *
- * @return string Your Razorpay Key ID
+ * @param mysqli|null $conn
  */
-function getRazorpayKeyId() {
-    //
-    // --- IMPORTANT ---
-    //
-    // REPLACE 'YOUR_KEY_ID' WITH YOUR ACTUAL RAZORPAY KEY ID
-    //
-    return 'rzp_test_Rc2fPJspYgFE7t';
+function closeDbConnection($conn) {
+    if ($conn && $conn instanceof mysqli) {
+        $conn->close();
+    }
 }
-
-/**
- * Returns a Razorpay Key Secret.
- * Replace with your actual Test or Live Key Secret.
- *
- * @return string Your Razorpay Key Secret
- */
-function getRazorpayKeySecret() {
-    //
-    // --- IMPORTANT ---
-    //
-    // REPLACE 'YOUR_KEY_SECRET' WITH YOUR ACTUAL RAZORPAY KEY SECRET
-    //
-    return 'JH3P170i23UUblXzVhciLeXY';
-}
-
 ?>

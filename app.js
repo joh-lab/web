@@ -1,373 +1,239 @@
-
+// app.js — Razorpay integration + routing + payment flow (Final Version)
 
 document.addEventListener('DOMContentLoaded', () => {
-
-    // --- Global State for Order ---
-    // This object will hold order details between pages
+    // 🌍 Global order state
     const currentOrder = {
-        packageName: 'Premium', // Default package
-        packagePrice: '₹999',
-        features: ['All premium features', 'Priority support', 'Editable Extra mix revisions'],
-        language: 'English',     // Default language
-        description: ''
+        packageName: '',
+        packagePrice: '',
+        features: [],
+        language: 'English',
+        description: '',
+        name: '',
+        email: '',
+        mobile: ''
     };
 
-    // --- Page Navigation ---
+    // 🧭 Routing / Navigation
     const pageSections = document.querySelectorAll('.page-section');
     const navLinks = document.querySelectorAll('.nav-link');
     const mobileMenu = document.getElementById('mobile-menu');
     const mobileMenuButton = document.getElementById('mobile-menu-button');
 
-    // Function to show a specific page section
     window.showSection = (sectionId) => {
         pageSections.forEach(section => {
-            if (section.id === sectionId) {
-                section.classList.add('active');
-            } else {
-                section.classList.remove('active');
-            }
+            section.classList.toggle('active', section.id === sectionId);
         });
-        // Scroll to top of new section
-        window.scrollTo(0, 0);
-        // Close mobile menu if open
-        if (!mobileMenu.classList.contains('hidden')) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
             mobileMenu.classList.add('hidden');
         }
     };
 
-    // Add click listeners to all nav links
     navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
+        link.addEventListener('click', e => {
             e.preventDefault();
-            const sectionId = link.getAttribute('data-section');
-            if (sectionId) {
-                showSection(sectionId);
-            }
+            const sectionId = link.dataset.section;
+            if (sectionId) showSection(sectionId);
         });
     });
 
-    // Mobile menu toggle
-    mobileMenuButton.addEventListener('click', () => {
-        mobileMenu.classList.toggle('hidden');
+    mobileMenuButton?.addEventListener('click', () => {
+        mobileMenu?.classList.toggle('hidden');
     });
 
-    // --- Review Carousel ---
-    const reviewSlider = document.getElementById('review-slider');
-    const reviewPrev = document.getElementById('review-prev');
-    const reviewNext = document.getElementById('review-next');
-    
-    if (reviewSlider) {
-        let currentReviewIndex = 0;
-        const reviews = reviewSlider.children;
-        const totalReviews = reviews.length;
-        // Clone reviews for infinite loop effect
-        for(let i=0; i<totalReviews; i++) {
-            reviewSlider.appendChild(reviews[i].cloneNode(true));
-        }
-        
-        const reviewSlideWidth = () => {
-             // On mobile, show 1. On desktop, show 3.
-            return window.innerWidth < 768 ? 100 : (100 / 3);
-        }
-
-        const updateReviewSlider = () => {
-            const width = reviewSlideWidth();
-            reviewSlider.style.transform = `translateX(-${currentReviewIndex * width}%)`;
-            
-            // Adjust review card widths based on screen size
-            const cards = reviewSlider.querySelectorAll('.flex-shrink-0');
-            if (window.innerWidth < 768) {
-                cards.forEach(card => card.classList.remove('md:w-1/3'));
-            } else {
-                 cards.forEach(card => card.classList.add('md:w-1/3'));
-            }
-        };
-
-        reviewNext.addEventListener('click', () => {
-            currentReviewIndex++;
-            reviewSlider.style.transition = 'transform 0.5s ease-in-out';
-            
-            let limit = totalReviews;
-            if (window.innerWidth >= 768) {
-                limit = totalReviews - 2; // Stop 3 from end on desktop
-            }
-
-            if (currentReviewIndex >= limit) {
-                // At the end of the "real" slides
-                setTimeout(() => {
-                    // Jump back to start without transition
-                    reviewSlider.style.transition = 'none';
-                    currentReviewIndex = 0;
-                    updateReviewSlider();
-                }, 500); // Must match transition duration
-            }
-            updateReviewSlider();
-        });
-
-        reviewPrev.addEventListener('click', () => {
-            if (currentReviewIndex === 0) {
-                 // At the start, jump to the end (clones)
-                reviewSlider.style.transition = 'none';
-                let limit = totalReviews;
-                if (window.innerWidth >= 768) {
-                    limit = totalReviews - 2; 
-                }
-                currentReviewIndex = limit - 1;
-                updateReviewSlider();
-            }
-
-            setTimeout(() => {
-                // Slide back
-                currentReviewIndex--;
-                reviewSlider.style.transition = 'transform 0.5s ease-in-out';
-                updateReviewSlider();
-            }, 50); // Short delay to allow jump to apply
-        });
-        
-        // Initial setup and resize handling
-        updateReviewSlider();
-        window.addEventListener('resize', updateReviewSlider);
-    }
-
-
-    // --- Package Selection (Home Page) ---
+    // 💎 Package Selection
+    const planButtons = document.querySelectorAll('.select-plan');
     const packageCards = document.querySelectorAll('.package-card');
-    
-    // Function to update the 'select-package' form
-    const updateSelectPackageForm = () => {
-        document.getElementById('package-name').textContent = currentOrder.packageName;
-        document.getElementById('package-price').textContent = currentOrder.packagePrice;
-        
-        const featuresList = document.getElementById('package-features');
-        featuresList.innerHTML = ''; // Clear old features
-        currentOrder.features.forEach(feature => {
-            const li = document.createElement('li');
-            li.className = 'flex items-center space-x-2';
-            li.innerHTML = `
-                <svg class="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
-                <span>${feature}</span>
-            `;
-            featuresList.appendChild(li);
-        });
-    };
 
-    // 'Choose Package' button click (on home/pricing)
-    window.choosePackageAndShow = (button, name, price, features) => {
-        // Update global state
-        currentOrder.packageName = name;
-        currentOrder.packagePrice = price;
-        currentOrder.features = features;
+    planButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const planName = btn.dataset.name;
+            const planPrice = btn.dataset.price;
 
-        // Remove 'selected-card' from all
-        packageCards.forEach(card => card.classList.remove('selected-card'));
-        
-        // Add 'selected-card' to the clicked one (if button exists)
-        if (button) {
-            button.closest('.package-card').classList.add('selected-card');
-        }
+            currentOrder.packageName = planName;
+            currentOrder.packagePrice = planPrice;
+            currentOrder.features = [
+                'High-quality mix and master',
+                'Fast delivery',
+                'Unlimited revisions'
+            ];
 
-        // Update the form on the next page
-        updateSelectPackageForm();
-        
-        // Show the 'select-package' page
-        showSection('select-package');
-    };
+            // Highlight selected plan visually
+            packageCards.forEach(card =>
+                card.classList.remove('selected-card', 'border-blue-600', 'ring', 'ring-blue-300')
+            );
+            btn.closest('.package-card')?.classList.add('selected-card', 'border-blue-600', 'ring', 'ring-blue-300');
 
-    // --- 'select-package' Page Logic ---
-    const langButtons = document.querySelectorAll('#lang-grid .btn-lang');
-    const songDescriptionInput = document.getElementById('song-description');
-    
-    // Language button clicks
-    langButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            // Update global state
-            currentOrder.language = button.getAttribute('data-lang');
-            
-            // Update styles
-            langButtons.forEach(btn => {
-                btn.classList.remove('bg-black', 'text-white');
-                btn.classList.add('bg-white', 'text-gray-700', 'border', 'border-gray-300', 'hover:bg-gray-50');
-            });
-            button.classList.add('bg-black', 'text-white');
-            button.classList.remove('bg-white', 'text-gray-700', 'border', 'border-gray-300', 'hover:bg-gray-50');
+            console.log(`💎 Selected Plan: ${planName} (${planPrice})`);
+            showSection('select-package');
         });
     });
 
-    // 'Continue to Payment' button click
-    document.getElementById('continue-to-payment-btn').addEventListener('click', () => {
-        // Save description to global state
-        currentOrder.description = songDescriptionInput.value;
-        
-        // Populate the hidden fields on the payment form
-        document.getElementById('package_name').value = currentOrder.packageName;
-        document.getElementById('package_price').value = currentOrder.packagePrice;
-        document.getElementById('language').value = currentOrder.language;
-        document.getElementById('description').value = currentOrder.description;
-        
-        // Show the payment page
+    // 🌐 Language Selection
+    const langButtons = document.querySelectorAll('#lang-grid .btn-lang');
+    langButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            currentOrder.language = btn.dataset.lang;
+            langButtons.forEach(b => b.classList.remove('bg-black', 'text-white'));
+            btn.classList.add('bg-black', 'text-white');
+        });
+    });
+
+    // 📝 Continue to Payment Section
+    const songDescriptionInput = document.getElementById('song-description');
+    const continueBtn = document.getElementById('continue-to-payment-btn');
+    continueBtn?.addEventListener('click', () => {
+        currentOrder.description = songDescriptionInput?.value.trim() || '';
         showSection('payment');
     });
 
-    // --- Payment Page Logic (customerForm) ---
+    // 💳 Payment Form Logic
     const customerForm = document.getElementById('customerForm');
     const payButton = document.getElementById('pay-button');
-    const payButtonText = payButton.querySelector('.pay-button-text');
-    const payButtonLoader = payButton.querySelector('.loader-container');
     const paymentErrorMsg = document.getElementById('payment-error');
+    const successMessage = document.getElementById('payment-success-message');
 
-    customerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        // Show loader, hide text
-        payButton.disabled = true;
-        payButtonText.classList.add('hidden');
-        payButtonLoader.classList.remove('hidden');
-        paymentErrorMsg.classList.add('hidden');
+    const toggleLoader = (btn, state) => {
+        if (!btn) return;
+        if (state) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
+        } else {
+            btn.disabled = false;
+            btn.textContent = 'Pay Now';
+        }
+    };
 
-        // 1. Get all data for the order
-        const orderData = {
-            name: document.getElementById('name').value,
-            email: document.getElementById('email').value,
-            mobile: document.getElementById('mobile').value,
-            language: document.getElementById('language').value,
-            description: document.getElementById('description').value,
-            packageName: document.getElementById('package_name').value,
-            packagePrice: document.getElementById('package_price').value
-        };
-
+    const safeParseJSON = async (res) => {
         try {
-            // 2. Create the order on the backend
-            const createOrderResponse = await fetch('create_order.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(orderData)
-            });
+            return await res.json();
+        } catch {
+            const text = await res.text();
+            throw new Error(`Invalid JSON: ${text}`);
+        }
+    };
 
-            const orderResult = await createOrderResponse.json();
+    const log = (...args) => console.log('[💳]', ...args);
 
-            if (!orderResult.success) {
-                throw new Error(orderResult.message || 'Failed to create order.');
-            }
+    // Prevent multiple event bindings
+    if (!window.__razorpayFormBound) {
+        window.__razorpayFormBound = true;
 
-            // 3. If order is created, open Razorpay checkout
-            const options = {
-                "key": orderResult.razorpay_key_id, // From create_order.php
-                "amount": orderResult.amount, // Amount in paise
-                "currency": "INR",
-                "name": "ForeverTunes",
-                "description": `Payment for ${orderResult.customer_name}`,
-                "image": "https://placehold.co/100x100/000000/FFFFFF?text=FT", // Your Logo
-                "order_id": "", // We will use this in the handler
-                "handler": async (response) => {
-                    // 4. Payment is successful, now verify it
-                    const verificationData = {
-                        razorpay_payment_id: response.razorpay_payment_id,
-                        order_id: orderResult.order_id, // The ID from our database
-                        amount: orderResult.amount // Pass amount to verify
-                    };
+        customerForm?.addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-                    const verifyResponse = await fetch('verify_payment.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(verificationData)
-                    });
-                    
-                    const verifyResult = await verifyResponse.json();
+            if (customerForm.dataset.processing === 'true') return;
+            customerForm.dataset.processing = 'true';
 
-                    if (verifyResult.success) {
-                        // 5. All good! Show success message
-                        document.getElementById('customer-details-section').classList.add('hidden');
-                        document.getElementById('payment-success-message').classList.remove('hidden');
-                    } else {
-                        // Verification failed
-                        throw new Error(verifyResult.message || 'Payment verification failed.');
-                    }
-                },
-                "prefill": {
-                    "name": orderResult.customer_name,
-                    "email": orderResult.customer_email,
-                    "contact": orderResult.customer_mobile
-                },
-                "notes": {
-                    "address": "ForeverTunes Corporate",
-                    "database_order_id": orderResult.order_id // Store our DB order_id
-                },
-                "theme": {
-                    "color": "#3399cc"
-                }
+            currentOrder.name = document.getElementById('name').value.trim();
+            currentOrder.email = document.getElementById('email').value.trim();
+            currentOrder.mobile = document.getElementById('mobile').value.trim();
+
+            toggleLoader(payButton, true);
+            paymentErrorMsg?.classList.add('hidden');
+
+            const orderData = {
+                name: currentOrder.name,
+                email: currentOrder.email,
+                mobile: currentOrder.mobile,
+                language: currentOrder.language,
+                description: currentOrder.description,
+                packageName: currentOrder.packageName,
+                packagePrice: currentOrder.packagePrice
             };
 
-            const rzp1 = new Razorpay(options);
-            
-            // Add listener for payment failure
-            rzp1.on('payment.failed', (response) => {
-                paymentErrorMsg.textContent = `Payment failed: ${response.error.description}`;
+            log('📦 Sending order to backend:', orderData);
+
+            try {
+                // Step 1️⃣: Create order
+                const res = await fetch('create_order.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(orderData)
+                });
+
+                const order = await safeParseJSON(res);
+                log('✅ Order created:', order);
+
+                if (!order.success) throw new Error(order.message || 'Order creation failed.');
+
+                // Step 2️⃣: Razorpay Checkout Setup
+                const options = {
+                    key: order.razorpay_key_id,
+                    amount: order.amount,
+                    currency: 'INR',
+                    name: 'ForeverTunes',
+                    description: `Payment for ${order.packageName}`,
+                    image: 'https://placehold.co/100x100/000000/FFFFFF?text=FT',
+                    order_id: order.razorpay_order_id,
+                    handler: async (response) => {
+                        log('💳 Payment successful:', response);
+                        try {
+                            // Step 3️⃣: Verify payment
+                            const verifyRes = await fetch('verify_payment.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    razorpay_payment_id: response.razorpay_payment_id,
+                                    razorpay_order_id: response.razorpay_order_id,
+                                    razorpay_signature: response.razorpay_signature,
+                                    order_id: order.order_id
+                                })
+                            });
+
+                            const verifyResult = await safeParseJSON(verifyRes);
+                            log('✅ Payment verified:', verifyResult);
+
+                            if (verifyResult.success) {
+                                // Step 4️⃣: Redirect to confirmation page
+                                if (verifyResult.redirect_url) {
+                                    window.location.href = verifyResult.redirect_url;
+                                } else {
+                                    showSection('success');
+                                    successMessage?.classList.remove('hidden');
+                                }
+                            } else {
+                                throw new Error(verifyResult.message || 'Verification failed.');
+                            }
+                        } catch (error) {
+                            log('❌ Verification error:', error);
+                            paymentErrorMsg.textContent = error.message;
+                            paymentErrorMsg.classList.remove('hidden');
+                        } finally {
+                            toggleLoader(payButton, false);
+                            customerForm.dataset.processing = 'false';
+                        }
+                    },
+                    prefill: {
+                        name: order.customer_name,
+                        email: order.customer_email,
+                        contact: order.customer_mobile
+                    },
+                    notes: { order_id: order.order_id },
+                    theme: { color: '#3399cc' }
+                };
+
+                const rzp = new Razorpay(options);
+
+                // Handle Payment Failure
+                rzp.on('payment.failed', (res) => {
+                    log('❌ Payment failed:', res.error);
+                    paymentErrorMsg.textContent = `Payment failed: ${res.error.description}`;
+                    paymentErrorMsg.classList.remove('hidden');
+                    toggleLoader(payButton, false);
+                    customerForm.dataset.processing = 'false';
+                });
+
+                // Step 4️⃣: Open Razorpay Checkout
+                rzp.open();
+
+            } catch (err) {
+                log('❌ Error during order creation or payment:', err);
+                paymentErrorMsg.textContent = err.message;
                 paymentErrorMsg.classList.remove('hidden');
-                // Hide loader, show text
-                payButton.disabled = false;
-                payButtonText.classList.remove('hidden');
-                payButtonLoader.classList.add('hidden');
-            });
-            
-            // Open the checkout
-            rzp1.open();
-
-        } catch (error) {
-            // Handle errors from create_order.php or network
-            paymentErrorMsg.textContent = error.message;
-            paymentErrorMsg.classList.remove('hidden');
-            // Hide loader, show text
-            payButton.disabled = false;
-            payButtonText.classList.remove('hidden');
-            payButtonLoader.classList.add('hidden');
-        }
-    });
-
-    // --- Contact Page Logic ---
-    const contactForm = document.getElementById('contact-form');
-    const contactSubmitBtn = document.getElementById('contact-submit-btn');
-    const contactSuccessMsg = document.getElementById('contact-success-message');
-    const contactErrorMsg = document.getElementById('contact-error-message');
-
-    contactForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        contactSubmitBtn.disabled = true;
-        contactSubmitBtn.textContent = 'Sending...';
-        contactSuccessMsg.classList.add('hidden');
-        contactErrorMsg.classList.add('hidden');
-
-        const formData = {
-            name: document.getElementById('contact-name').value,
-            email: document.getElementById('contact-email').value,
-            subject: document.getElementById('contact-subject').value,
-            message: document.getElementById('contact-message').value,
-        };
-
-        try {
-            const response = await fetch('submit_contact.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            
-            const result = await response.json();
-
-            if (result.success) {
-                contactForm.reset();
-                contactSuccessMsg.textContent = result.message;
-                contactSuccessMsg.classList.remove('hidden');
-            } else {
-                throw new Error(result.message || 'Failed to send message.');
+                toggleLoader(payButton, false);
+                customerForm.dataset.processing = 'false';
             }
-
-        } catch (error) {
-            contactErrorMsg.textContent = error.message;
-            contactErrorMsg.classList.remove('hidden');
-        } finally {
-            contactSubmitBtn.disabled = false;
-            contactSubmitBtn.textContent = 'Send Message';
-        }
-    });
-
+        });
+    }
 });
