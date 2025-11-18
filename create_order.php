@@ -48,10 +48,10 @@ try {
     $debug[] = '✅ Database connected.';
 
     // Sanitize and format input
-    $name        = $conn->real_escape_string(trim($input['name']));
-    $email       = $conn->real_escape_string(trim($input['email']));
-    $mobile      = $conn->real_escape_string(trim($input['mobile']));
-    $language    = $conn->real_escape_string(trim($input['language']));
+    $name = $conn->real_escape_string(trim($input['name']));
+    $email = $conn->real_escape_string(trim($input['email']));
+    $mobile = $conn->real_escape_string(trim($input['mobile']));
+    $language = $conn->real_escape_string(trim($input['language']));
     $description = $conn->real_escape_string(trim($input['description']));
     $packageName = $conn->real_escape_string(trim($input['packageName']));
     $packagePrice = (float) str_replace(['₹', ',', ' '], '', $input['packagePrice']);
@@ -76,13 +76,17 @@ try {
 
     $order_id = $conn->insert_id;
     $debug[] = "🆕 Local order created (ID: $order_id)";
-
+error_log("KEY ID: " . getRazorpayKeyId());
+    error_log("KEY SECRET: " . getRazorpayKeySecret());
     // Razorpay order creation
     $api = new Api(getRazorpayKeyId(), getRazorpayKeySecret());
+    
+
+
     $orderData = [
-        'receipt'         => 'order_rcpt_' . $order_id,
-        'amount'          => $packagePrice * 100, // paise
-        'currency'        => 'INR',
+        'receipt' => 'order_rcpt_' . $order_id,
+        'amount' => $packagePrice * 100, // paise
+        'currency' => 'INR',
         'payment_capture' => 1
     ];
 
@@ -104,16 +108,16 @@ try {
 
     // Final response
     $response = [
-        'success'           => true,
-        'message'           => 'Order created successfully.',
-        'order_id'          => $order_id,
+        'success' => true,
+        'message' => 'Order created successfully.',
+        'order_id' => $order_id,
         'razorpay_order_id' => $razorpay_order_id,
-        'razorpay_key_id'   => getRazorpayKeyId(),
-        'amount'            => $packagePrice * 100,
-        'packageName'       => $packageName,
-        'customer_name'     => $name,
-        'customer_email'    => $email,
-        'customer_mobile'   => $mobile
+        'razorpay_key_id' => getRazorpayKeyId(),
+        'amount' => $packagePrice * 100,
+        'packageName' => $packageName,
+        'customer_name' => $name,
+        'customer_email' => $email,
+        'customer_mobile' => $mobile
     ];
 
     $debug[] = '✅ Order process completed successfully.';
